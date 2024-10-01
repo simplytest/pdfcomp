@@ -91,15 +91,16 @@ namespace pdfcomp
                            Magick::InitializeMagick(path.string().c_str());
                        });
 
-        impl data{};
+        auto path = fs::canonical(document);
+        auto data = impl{};
 
         try
         {
-            Magick::readImages(&data.pages, document.string());
+            Magick::readImages(&data.pages, path.string());
         }
         catch (Magick::Error &err)
         {
-            std::println(stderr, "Error: {}", err.what());
+            std::println(stderr, "Error ('{}'): {}", path.string(), err.what());
             return tl::unexpected{error::bad_file};
         }
 
