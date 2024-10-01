@@ -1,0 +1,47 @@
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+    paths-ignore:
+      - "**/*.md"
+
+name: 🏗️ Build
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+
+      matrix:
+        type: [linux, windows]
+        config: [Release, Debug]
+
+        include:
+          - type: linux
+            container: fedora:40
+            deps: sudo dnf install -y git cmake gcc gcc-c++ ninja-build ImageMagick ImageMagick-devel ImageMagick-c++-devel
+
+          - type: windows
+            deps: choco install --force -y -PackageParameters InstallDevelopmentHeaders=true imagemagick.app
+
+    runs-on: ${{ contains(matrix.type, 'windows') && 'windows-latest' || 'ubuntu-latest' }}
+    container: ${{ matrix.container }}
+
+    name: "${{ matrix.type }} (⚙️: ${{ matrix.config }})"
+
+    steps:
+      - name: 📦 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧰 Dependencies
+        run: ${{ matrix.deps }}
+
+      - name: 🔧 Compile
+        run: |
+          cmake -B build
+          cmake --build build --config ${{ matrix.config }}
+
+      - name: 📦 Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.type }}-${{ matrix.config }}
+          path: build
