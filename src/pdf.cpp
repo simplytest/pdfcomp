@@ -1,7 +1,9 @@
 #include "pdf.hpp"
 
 #include <numeric>
+
 #include <mutex>
+#include <print>
 
 #include <vector>
 #include <ranges>
@@ -89,8 +91,9 @@ namespace pdfcomp
         {
             Magick::readImages(&data.pages, document.string());
         }
-        catch (Magick::Error &)
+        catch (Magick::Error &err)
         {
+            std::println(stderr, "Error: {}", err.what());
             return tl::unexpected{error::bad_file};
         }
 
