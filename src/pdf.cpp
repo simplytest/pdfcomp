@@ -83,7 +83,13 @@ namespace pdfcomp
     tl::expected<pdf, error> pdf::from(const fs::path &document)
     {
         static std::once_flag flag;
-        std::call_once(flag, []() { Magick::InitializeMagick(fs::current_path().string().c_str()); });
+
+        std::call_once(flag,
+                       []()
+                       {
+                           const auto path = fs::current_path() / "magick";
+                           Magick::InitializeMagick(path.string().c_str());
+                       });
 
         impl data{};
 
