@@ -48,8 +48,8 @@ namespace pdfcomp
             comp.emplace_back(image, distortion);
         }
 
-        const auto values = comp | std::views::values;
-        auto differences  = std::accumulate(values.begin(), values.end(), 0.0);
+        const auto values      = comp | std::views::values;
+        const auto differences = std::accumulate(values.begin(), values.end(), 0.0);
 
         if (!output)
         {
@@ -85,8 +85,15 @@ namespace pdfcomp
         static std::once_flag flag;
         std::call_once(flag, []() { Magick::InitializeMagick(fs::current_path().string().c_str()); });
 
-        auto path = fs::canonical(document);
-        auto data = impl{};
+        std::error_code ec{};
+        const auto path = fs::canonical(document, ec);
+
+        if (ec)
+        {
+            return tl::unexpected{error::bad_file};
+        }
+
+        impl data{};
 
         try
         {
@@ -95,6 +102,11 @@ namespace pdfcomp
         catch (Magick::Error &err)
         {
             std::println(stderr, "Error ('{}'): {}", path.string(), err.what());
+            return tl::unexpected{error::bad_file};
+        }
+        catch (...)
+        {
+            std::println(stderr, "Unknown error");
             return tl::unexpected{error::bad_file};
         }
 
