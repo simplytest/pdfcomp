@@ -1,6 +1,7 @@
 #include "pdf.hpp"
 
 #include <numeric>
+#include <utility>
 
 #include <mutex>
 #include <print>
@@ -13,9 +14,19 @@
 
 namespace pdfcomp
 {
+    using Magick::ColorRGB;
+    using Magick::CompositeOperator;
+    using Magick::Geometry;
+    using Magick::Image;
+    using Magick::MetricType;
+
     struct pdf::impl
     {
-        std::vector<Magick::Image> pages;
+        std::vector<Image> pages;
+
+      public:
+        template <algorithm Algorithm>
+        static std::pair<Image, Image> compare(Image &, Image &);
     };
 
     pdf::pdf(impl data) : m_impl(std::make_unique<impl>(std::move(data))) {}
@@ -31,53 +42,106 @@ namespace pdfcomp
         return m_impl->pages.size();
     }
 
-    tl::expected<double, error> pdf::compare(const pdf &other, std::optional<fs::path> output) const
+    template <>
+    std::pair<Image, Image> pdf::impl::compare<algorithm::highlight>(Image &first, Image &second)
+    {
+        second.lowlightColor(ColorRGB{0, 0, 0, 0});
+        second.highlightColor(ColorRGB{0, 0, 255});
+
+        [[maybe_unused]] double distortion{};
+
+        return {
+            first.compare(second, MetricType::AbsoluteErrorMetric, &distortion),
+            second.compare(first, MetricType::AbsoluteErrorMetric, &distortion),
+        };
+    }
+
+    template <>
+    std::pair<Image, Image> pdf::impl::compare<algorithm::difference>(Image &first, Image &second)
+    {
+        auto diff = first;
+        diff.composite(second, 0, 0, CompositeOperator::ChangeMaskCompositeOp);
+
+        first.lowlightColor(ColorRGB{0, 0, 0, 0});
+
+        [[maybe_unused]] double distortion{};
+        auto highlight = first.compare(second, MetricType::AbsoluteErrorMetric, &distortion);
+
+        return {diff, highlight};
+    }
+
+    tl::expected<double, error> pdf::compare(const pdf &other, const options &opts) const
     {
         if (m_impl->pages.size() != other.m_impl->pages.size())
         {
             return tl::unexpected{error::mismatching_pages};
         }
 
-        std::vector<std::pair<Magick::Image, double>> comp;
+        std::vector<double> diffs;
 
         for (const auto &[first, second] : std::views::zip(m_impl->pages, other.m_impl->pages))
         {
-            double distortion{};
-            auto image = first.compare(second, Magick::AbsoluteErrorMetric, &distortion);
-
-            comp.emplace_back(image, distortion);
+            first.colorFuzz(opts.fuzz);
+            diffs.emplace_back(first.compare(second, MetricType::AbsoluteErrorMetric));
         }
 
-        const auto values      = comp | std::views::values;
-        const auto differences = std::accumulate(values.begin(), values.end(), 0.0);
+        const auto total = std::accumulate(diffs.begin(), diffs.end(), 0.0);
 
-        if (!output)
+        if (!opts.output)
         {
-            return differences;
+            return total;
         }
+
+        const auto output = opts.output.value();
 
         std::error_code ec{};
-        fs::create_directories(output.value());
+        fs::create_directories(output);
 
-        if (!fs::is_directory(output.value()))
+        if (!fs::is_directory(output))
         {
             return tl::unexpected{error::bad_directory};
         }
 
-        for (auto [index, elem] : comp | std::views::enumerate)
+        for (const auto &[index, difference] : diffs | std::views::enumerate)
         {
-            auto &[image, difference] = elem;
-
-            if (difference <= 0)
+            if (difference <= opts.tolerance)
             {
                 continue;
             }
 
-            const auto path = output.value() / std::format("{}.png", index);
-            image.write(path.string());
+            auto &first  = m_impl->pages[index];
+            auto &second = other.m_impl->pages[index];
+
+            std::pair<Image, Image> result;
+
+            switch (opts.method)
+            {
+            case algorithm::highlight:
+                result = impl::compare<algorithm::highlight>(first, second);
+                break;
+            case algorithm::difference:
+                result = impl::compare<algorithm::difference>(first, second);
+                break;
+            }
+
+            const auto &[middle, right] = result;
+            auto canvas                 = first;
+
+            auto extent = Geometry{
+                first.size().width() + middle.size().width() + right.size().width(),
+                middle.size().height(),
+            };
+
+            canvas.extent(extent);
+
+            canvas.composite(middle, static_cast<ssize_t>(first.size().width()), 0);
+            canvas.composite(right, static_cast<ssize_t>(first.size().width() + middle.size().width()), 0);
+
+            const auto path = output / std::format("{}{}.png", opts.prefix, index);
+            canvas.write(path.string());
         }
 
-        return differences;
+        return total;
     }
 
     tl::expected<pdf, error> pdf::from(const fs::path &document)

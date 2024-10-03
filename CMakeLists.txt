@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(pdfcomp LANGUAGES CXX VERSION 1.0.0)
+project(pdfcomp LANGUAGES CXX VERSION 2.0.0)
 
 # --------------------------------------------------------------------------------------------------------
 # Setup Executable

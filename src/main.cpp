@@ -17,28 +17,50 @@ int main(int argc, char **argv)
       public:
         struct
         {
-            fs::path path;
+            fs::path value;
             bool enabled{};
-        } diff;
+        } output;
+
+        struct
+        {
+            std::string value;
+            bool enabled{};
+        } prefix;
+
+        struct
+        {
+            double value{0};
+            bool enabled{};
+        } fuzz;
 
         struct
         {
             double value{0};
             bool enabled{};
         } tolerance;
+
+        struct
+        {
+            std::uint8_t value{0};
+            bool enabled{};
+        } method;
     } args;
 
     auto options = clap::Options{
         "pdfcomp",
         "A utility to compare PDF and image files",
-        "1.0.0",
+        "2.0.0",
     };
 
     options                                //
         .positional(args.first, "first")   //
         .positional(args.second, "second") //
         .optional(args.tolerance.value, args.tolerance.enabled, "t,tol", "Absolute tolerance", "<value>")
-        .optional(args.diff.path, args.diff.enabled, "d,diff", "Folder to save a difference image(s) to", "<path>");
+        .optional(args.output.value, args.output.enabled, "o,output", "Folder to save a difference image(s) to", "<path>")
+        .optional(args.fuzz.value, args.fuzz.enabled, "f,fuzz", "Fuzziness to use for comparison", "<path>")
+        .optional(args.prefix.value, args.prefix.enabled, "p,prefix", "Filename prefix to use", "<value>")
+        .optional(args.method.value, args.method.enabled, "m,method",
+                  "Highlighting algorithm to use (0 = default, 1 = Only Differences)", "<value>");
 
     auto result = options.parse(argc, argv);
 
@@ -63,19 +85,32 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    auto diff = first->compare(second.value(), args.diff.enabled ? std::optional{args.diff.path} : std::nullopt);
+    if (args.method.value > 1)
+    {
+        std::println(stderr, "Invalid method specified ({})", args.method.value);
+        return 1;
+    }
+
+    auto diff = first->compare(second.value(), {
+                                                   .fuzz      = args.fuzz.value,
+                                                   .tolerance = args.tolerance.value,
+                                                   .method    = static_cast<pdfcomp::algorithm>(args.method.value),
+                                                   .prefix    = args.prefix.value,
+                                                   .output    = args.output.value,
+                                               });
 
     if (!diff.has_value())
     {
         switch (diff.error())
         {
         case pdfcomp::error::bad_directory:
-            std::println(stderr, "Given output directory ('{}') is not valid", args.diff.path.string());
+            std::println(stderr, "Given output directory ('{}') is not valid", args.output.value.string());
             break;
         case pdfcomp::error::mismatching_pages:
             std::println(stderr, "Given PDFs have differing page count ({}/{})", first->pages(), second->pages());
             break;
         default:
+            std::unreachable();
             break;
         }
 

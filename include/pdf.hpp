@@ -1,8 +1,12 @@
 #pragma once
 
+#include <string>
 #include <memory>
-#include <optional>
+
 #include <filesystem>
+
+#include <cstdint>
+#include <optional>
 
 #include <tl/expected.hpp>
 
@@ -10,11 +14,28 @@ namespace pdfcomp
 {
     namespace fs = std::filesystem;
 
-    enum class error
+    enum class error : std::uint8_t
     {
         bad_file,
         bad_directory,
         mismatching_pages,
+    };
+
+    enum class algorithm : std::uint8_t
+    {
+        highlight,
+        difference,
+    };
+
+    struct options
+    {
+        double fuzz{0};
+        double tolerance{0};
+        algorithm method{algorithm::highlight};
+
+      public:
+        std::string prefix;
+        std::optional<fs::path> output;
     };
 
     class pdf
@@ -36,7 +57,7 @@ namespace pdfcomp
 
       public:
         [[nodiscard]] std::size_t pages() const;
-        [[nodiscard]] tl::expected<double, error> compare(const pdf &other, std::optional<fs::path> output) const;
+        [[nodiscard]] tl::expected<double, error> compare(const pdf &other, const options &opts) const;
 
       public:
         [[nodiscard]] static tl::expected<pdf, error> from(const fs::path &);
