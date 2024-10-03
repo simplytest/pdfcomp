@@ -57,7 +57,7 @@ int main(int argc, char **argv)
         .positional(args.second, "second") //
         .optional(args.tolerance.value, args.tolerance.enabled, "t,tol", "Absolute tolerance", "<value>")
         .optional(args.output.value, args.output.enabled, "o,output", "Folder to save a difference image(s) to", "<path>")
-        .optional(args.fuzz.value, args.fuzz.enabled, "f,fuzz", "Fuzziness to use for comparison", "<path>")
+        .optional(args.fuzz.value, args.fuzz.enabled, "f,fuzz", "Fuzziness to use for comparison", "<value>")
         .optional(args.prefix.value, args.prefix.enabled, "p,prefix", "Filename prefix to use", "<value>")
         .optional(args.method.value, args.method.enabled, "m,method",
                   "Highlighting algorithm to use (0 = default, 1 = Only Differences)", "<value>");
