@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
 
       matrix:
-        type: [linux, windows]
-        config: [Release, Debug]
+        type: [linux, windows, windows-static]
+        config: [Release]
 
         include:
           - type: linux
@@ -22,6 +22,18 @@ jobs:
 
           - type: windows
             deps: choco install --force -y -PackageParameters InstallDevelopmentHeaders=true imagemagick.app
+
+          - type: windows-static
+            cmake-args: -A x64 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DMAGICK_ROOT=ImageMagick-Windows
+            deps: |
+              git clone https://github.com/simplytest/ImageMagick-Windows
+              cd ImageMagick-Windows
+
+              ./CloneRepositories.IM7.cmd
+
+              # We could also invoke MS-Build to compile the libraries here, but this is quicker for now :)
+              Invoke-WebRequest "https://github.com/simplytest/ImageMagick-Windows/releases/download/v7.1.1/Artifacts.zip" -OutFile Artifacts.zip
+              Expand-Archive -Path Artifacts.zip -DestinationPath $PWD.Path
 
     runs-on: ${{ contains(matrix.type, 'windows') && 'windows-latest' || 'ubuntu-latest' }}
     container: ${{ matrix.container }}
@@ -37,7 +49,7 @@ jobs:
 
       - name: 🔧 Compile
         run: |
-          cmake -B build
+          cmake -B build ${{ matrix.cmake-args }}
           cmake --build build --config ${{ matrix.config }}
 
       - name: 📦 Upload Artifact
