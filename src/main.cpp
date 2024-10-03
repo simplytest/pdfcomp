@@ -91,12 +91,14 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    const auto output = args.output.enabled ? std::optional{args.output.value} : std::nullopt;
+
     auto diff = first->compare(second.value(), {
                                                    .fuzz      = args.fuzz.value,
                                                    .tolerance = args.tolerance.value,
                                                    .method    = static_cast<pdfcomp::algorithm>(args.method.value),
                                                    .prefix    = args.prefix.value,
-                                                   .output    = args.output.value,
+                                                   .output    = output,
                                                });
 
     if (!diff.has_value())
