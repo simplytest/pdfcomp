@@ -29,6 +29,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC "include")
 # --------------------------------------------------------------------------------------------------------
 
 include("cmake/cpm.cmake")
+include("cmake/magick.cmake")
 
 CPMFindPackage(
   NAME           clap
@@ -43,5 +44,4 @@ CPMFindPackage(
   OPTIONS        "EXPECTED_BUILD_TESTS OFF"
 )
 
-find_package(ImageMagick COMPONENTS MagickCore Magick++ REQUIRED)
 target_link_libraries(${PROJECT_NAME} PUBLIC clap::clap tl::expected ImageMagick::MagickCore ImageMagick::Magick++)
