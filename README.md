@@ -9,7 +9,7 @@
 
 ## 👋 Introduction
 
-PDFComp is a tool to compare two given PDFs for equality. 
+PDFComp is a tool to compare two given PDFs (or images) for equality. 
 Equality is determined by the absolute pixel difference.
 
 ## 🖥️ Usage

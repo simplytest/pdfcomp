@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 
     auto options = clap::Options{
         "pdfcomp",
-        "A utility to compare PDF files",
+        "A utility to compare PDF and image files",
         "1.0.0",
     };
 
