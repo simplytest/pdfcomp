@@ -23,7 +23,7 @@ OPTIONS
 
   -t, --tol[=<value>]        Absolute tolerance
   -o, --output[=<path>]      Folder to save a difference image(s) to
-  -f, --fuzz[=<path>]        Fuzziness to use for comparison
+  -f, --fuzz[=<value>]       Fuzziness to use for comparison
   -p, --prefix[=<value>]     Filename prefix to use
   -m, --method[=<value>]     Highlighting algorithm to use (0 = default, 1 = Only Differences)
       --help                 show help
