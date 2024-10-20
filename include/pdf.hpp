@@ -23,15 +23,16 @@ namespace pdfcomp
 
     enum class algorithm : std::uint8_t
     {
-        highlight,
+        simple,
         difference,
+        double_compare,
     };
 
     struct options
     {
         double fuzz{0};
         double tolerance{0};
-        algorithm method{algorithm::highlight};
+        algorithm method{algorithm::simple};
 
       public:
         std::string prefix;
@@ -60,6 +61,6 @@ namespace pdfcomp
         [[nodiscard]] tl::expected<double, error> compare(const pdf &other, const options &opts) const;
 
       public:
-        [[nodiscard]] static tl::expected<pdf, error> from(const fs::path &);
+        [[nodiscard]] static tl::expected<pdf, error> from(const fs::path &, const std::string &density);
     };
 } // namespace pdfcomp

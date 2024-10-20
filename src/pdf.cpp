@@ -43,7 +43,7 @@ namespace pdfcomp
     }
 
     template <>
-    std::pair<Image, Image> pdf::impl::compare<algorithm::highlight>(Image &first, Image &second)
+    std::pair<Image, Image> pdf::impl::compare<algorithm::simple>(Image &first, Image &second)
     {
         second.lowlightColor(ColorRGB{0, 0, 0, 0});
         second.highlightColor(ColorRGB{0, 0, 255});
@@ -52,7 +52,7 @@ namespace pdfcomp
 
         return {
             first.compare(second, MetricType::AbsoluteErrorMetric, &distortion),
-            second.compare(first, MetricType::AbsoluteErrorMetric, &distortion),
+            second,
         };
     }
 
@@ -68,6 +68,20 @@ namespace pdfcomp
         auto highlight = first.compare(second, MetricType::AbsoluteErrorMetric, &distortion);
 
         return {diff, highlight};
+    }
+
+    template <>
+    std::pair<Image, Image> pdf::impl::compare<algorithm::double_compare>(Image &first, Image &second)
+    {
+        second.lowlightColor(ColorRGB{0, 0, 0, 0});
+        second.highlightColor(ColorRGB{0, 0, 255});
+
+        [[maybe_unused]] double distortion{};
+
+        return {
+            first.compare(second, MetricType::AbsoluteErrorMetric, &distortion),
+            second.compare(first, MetricType::AbsoluteErrorMetric, &distortion),
+        };
     }
 
     tl::expected<double, error> pdf::compare(const pdf &other, const options &opts) const
@@ -116,26 +130,27 @@ namespace pdfcomp
 
             switch (opts.method)
             {
-            case algorithm::highlight:
-                result = impl::compare<algorithm::highlight>(first, second);
+            case algorithm::simple:
+                result = impl::compare<algorithm::simple>(first, second);
                 break;
             case algorithm::difference:
                 result = impl::compare<algorithm::difference>(first, second);
                 break;
+            case algorithm::double_compare:
+                result = impl::compare<algorithm::double_compare>(first, second);
+                break;
             }
 
             const auto &[middle, right] = result;
-            auto canvas                 = first;
+            const auto size             = first.size();
 
-            auto extent = Geometry{
-                first.size().width() + middle.size().width() + right.size().width(),
-                middle.size().height(),
-            };
+            auto canvas = first;
+            auto extent = Geometry{size.width() * 3, size.height()};
 
             canvas.extent(extent);
 
-            canvas.composite(middle, static_cast<ssize_t>(first.size().width()), 0);
-            canvas.composite(right, static_cast<ssize_t>(first.size().width() + middle.size().width()), 0);
+            canvas.composite(middle, static_cast<ssize_t>(size.width()), 0, CompositeOperator::AtopCompositeOp);
+            canvas.composite(right, static_cast<ssize_t>(size.width() * 2), 0, CompositeOperator::AtopCompositeOp);
 
             const auto path = output / std::format("{}{}.png", opts.prefix, index);
             canvas.write(path.string());
@@ -144,7 +159,7 @@ namespace pdfcomp
         return total;
     }
 
-    tl::expected<pdf, error> pdf::from(const fs::path &document)
+    tl::expected<pdf, error> pdf::from(const fs::path &document, const std::string &density)
     {
         static std::once_flag flag;
         std::call_once(flag, []() { Magick::InitializeMagick(fs::current_path().string().c_str()); });
@@ -159,9 +174,12 @@ namespace pdfcomp
 
         impl data{};
 
+        Magick::ReadOptions options{};
+        options.density(density);
+
         try
         {
-            Magick::readImages(&data.pages, path.string());
+            Magick::readImages(&data.pages, path.string(), options);
         }
         catch (Magick::Error &err)
         {

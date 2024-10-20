@@ -23,6 +23,12 @@ int main(int argc, char **argv)
 
         struct
         {
+            std::string value{"100%x100%"};
+            bool enabled{};
+        } density;
+
+        struct
+        {
             std::string value;
             bool enabled{};
         } prefix;
@@ -56,11 +62,12 @@ int main(int argc, char **argv)
         .positional(args.first, "first")   //
         .positional(args.second, "second") //
         .optional(args.tolerance.value, args.tolerance.enabled, "t,tol", "Absolute tolerance", "<value>")
+        .optional(args.density.value, args.density.enabled, "d,density", "Density to read image in", "<value>")
         .optional(args.output.value, args.output.enabled, "o,output", "Folder to save a difference image(s) to", "<path>")
         .optional(args.fuzz.value, args.fuzz.enabled, "f,fuzz", "Fuzziness to use for comparison", "<value>")
         .optional(args.prefix.value, args.prefix.enabled, "p,prefix", "Filename prefix to use", "<value>")
         .optional(args.method.value, args.method.enabled, "m,method",
-                  "Highlighting algorithm to use (0 = default, 1 = Only Differences)", "<value>");
+                  "Highlighting algorithm to use (0 = simple, 1 = difference, 2 = double compare)", "<value>");
 
     auto result = options.parse(argc, argv);
 
@@ -69,7 +76,8 @@ int main(int argc, char **argv)
         return clap::return_code(result);
     }
 
-    auto first = pdfcomp::pdf::from(args.first);
+    const auto density = args.density.value;
+    auto first         = pdfcomp::pdf::from(args.first, density);
 
     if (!first)
     {
@@ -77,7 +85,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    auto second = pdfcomp::pdf::from(args.second);
+    auto second = pdfcomp::pdf::from(args.second, density);
 
     if (!second)
     {
